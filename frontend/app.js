@@ -18,15 +18,24 @@
     { id: "egghead", label: "Egghead", eps: "1086+" },
   ];
 
-  const SUGGESTIONS = [
-    "Quem é Monkey D. Luffy?",
-    "Qual a recompensa do Zoro agora?",
-    "O que a Mera Mera no Mi faz?",
-    "Me fale do Going Merry",
-    "Quais episódios deste arco são fillers?",
-    "Quem são os Chapéus de Palha até aqui?",
-    "Uma teoria sobre o One Piece (sem spoiler!)",
-  ];
+  // Sugestões por arco (SPEC 05): só citam o que já apareceu até o FIM do arco escolhido, para a própria
+  // sugestão não entregar spoiler. Os arcos do roteiro da demo (SPEC 06) trazem as perguntas dele.
+  const SUGGESTIONS_BY_ARC = {
+    "east-blue": ["Qual a recompensa do Luffy?", "O que acontece com o Going Merry?", "Quem é Roronoa Zoro?", "Quem é o Arlong?"],
+    alabasta: ["Quem é o Crocodile?", "O que a Suna Suna no Mi faz?", "Quem é o Ace?", "Quem é o Tony Tony Chopper?"],
+    skypiea: ["Qual a recompensa do Luffy?", "Quem é o Enel?", "O que a Goro Goro no Mi faz?", "Quem é o Montblanc Cricket?"],
+    "water-7": ["Quem é Monkey D. Luffy e qual a recompensa dele?", "Quem é Nico Robin?", "O que é o CP9?", "Me fale do Thousand Sunny"],
+    "thriller-bark": ["Quem é o Brook?", "Quem é Gecko Moria?", "O que a Kage Kage no Mi faz?", "Quem são os Chapéus de Palha até aqui?"],
+    marineford: ["O que aconteceu na Guerra de Marineford?", "Quem é o Barba Branca?", "Quem é Boa Hancock?", "O que é o Haki?"],
+    "fishman-island": ["Como ficaram os Chapéus de Palha depois dos 2 anos?", "Quem é o Hody Jones?", "Quem é a Shirahoshi?", "Me fale da Ilha dos Homens-Peixe"],
+    dressrosa: ["Quem é o Doflamingo?", "Quem é o Trafalgar Law?", "O que é o Gear Fourth?", "Me fale da Ope Ope no Mi"],
+    "whole-cake": ["Quem é a Big Mom?", "Quem é o Charlotte Katakuri?", "Quem são os Vinsmoke?", "Qual a recompensa do Luffy?"],
+    wano: ["Quem é o Kaido?", "Quem é a Yamato?", "Quem foi Kozuki Oden?", "O que é o Gear 5?"],
+    egghead: ["Qual a recompensa atual do Luffy?", "Quem é o Dr. Vegapunk?", "O que a Hito Hito no Mi, Modelo Nika faz?", "Quem são os Quatro Imperadores atuais?"],
+  };
+  const SUGGESTIONS_COMMON = ["Quais episódios deste arco são fillers?", "Uma teoria sobre o One Piece (sem spoiler!)"];
+  // Antes de escolher o arco: só o que é seguro até para quem está no começo
+  const SUGGESTIONS_DEFAULT = ["Quem é Monkey D. Luffy?", "Quem são os Chapéus de Palha até aqui?", "Me fale do Going Merry", ...SUGGESTIONS_COMMON];
 
   const TYPE_LABEL = {
     character: "Personagem",
@@ -38,6 +47,7 @@
 
   const HISTORY_LIMIT = 6; // SPEC 03 (o backend também corta em 6)
   const HISTORY_ITEM_CHARS = 1500;
+  const MESSAGE_MAX_CHARS = 500; // SPEC 03 (o mesmo maxlength do <textarea>)
   const STORAGE_KEY = "logpose.arc";
   const THEME_KEY = "logpose.theme"; // o mesmo nome é lido no <head> do index.html
   const THEME_COLOR = { dark: "#0B132B", light: "#F6F0E2" }; // <meta name="theme-color">
@@ -46,6 +56,7 @@
   const els = {
     arc: $("#arc"), log: $("#log"), messages: $("#messages"), chips: $("#chips"),
     form: $("#composer"), input: $("#input"), send: $("#send"), clear: $("#clear"), theme: $("#theme"),
+    counter: $("#counter"),
   };
 
   /** @type {{role: "user"|"assistant", content: string}[]} */
@@ -240,6 +251,7 @@
     addUserMessage(message);
     els.input.value = "";
     autoGrow();
+    updateCounter();
     setBusy(true);
     showTyping();
 
@@ -279,6 +291,28 @@
     els.input.style.height = `${Math.min(els.input.scrollHeight, 160)}px`;
   }
 
+  // Contador x/500: cinza normal, dourado a partir de 90% e vermelho no limite
+  function updateCounter() {
+    const n = els.input.value.length;
+    const color = n >= MESSAGE_MAX_CHARS ? "text-danger" : n >= MESSAGE_MAX_CHARS * 0.9 ? "text-gold" : "text-muted";
+    els.counter.textContent = `${n}/${MESSAGE_MAX_CHARS}`;
+    els.counter.classList.remove("text-muted", "text-gold", "text-danger");
+    els.counter.classList.add(color);
+  }
+
+  // Sugestões do arco atual (ou a lista geral, antes de escolher o arco)
+  function renderChips() {
+    const arc = currentArc();
+    const questions = arc ? [...(SUGGESTIONS_BY_ARC[arc.id] || []), ...SUGGESTIONS_COMMON] : SUGGESTIONS_DEFAULT;
+    els.chips.replaceChildren(...questions.map((q) => {
+      const chip = el("button", "shrink-0 whitespace-nowrap rounded-full border border-rope bg-hull px-3 py-1.5 text-xs text-ink-2 transition hover:border-gold hover:text-gold focus:outline-none focus:ring-2 focus:ring-gold/40 disabled:opacity-50", q);
+      chip.type = "button";
+      chip.disabled = busy;
+      chip.addEventListener("click", () => sendMessage(q));
+      return chip;
+    }));
+  }
+
   function welcome() {
     addBotMessage(
       "Ahoy! Eu sou o **Log Pose AI** 🧭 — seu guia pelo mundo de **One Piece**.\n\n" +
@@ -303,18 +337,15 @@
       els.arc.classList.remove("ring-2", "ring-gold");
       store.set(STORAGE_KEY, els.arc.value);
       const arc = currentArc();
+      renderChips();
       if (arc) addNotice(`🗺️ Posição atualizada: ${arc.label} — respostas filtradas até aqui.`);
     });
 
-    SUGGESTIONS.forEach((q) => {
-      const chip = el("button", "shrink-0 whitespace-nowrap rounded-full border border-rope bg-hull px-3 py-1.5 text-xs text-ink-2 transition hover:border-gold hover:text-gold focus:outline-none focus:ring-2 focus:ring-gold/40 disabled:opacity-50", q);
-      chip.type = "button";
-      chip.addEventListener("click", () => sendMessage(q));
-      els.chips.append(chip);
-    });
+    renderChips();
+    updateCounter();
 
     els.form.addEventListener("submit", (e) => { e.preventDefault(); sendMessage(els.input.value); });
-    els.input.addEventListener("input", autoGrow);
+    els.input.addEventListener("input", () => { autoGrow(); updateCounter(); });
     els.input.addEventListener("keydown", (e) => {
       if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); sendMessage(els.input.value); }
     });
