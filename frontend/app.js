@@ -64,6 +64,9 @@
   /** @type {{role: "user"|"assistant", content: string}[]} */
   let history = [];
   let busy = false;
+  /** @type {AbortController | null} pedido em andamento (cancelado se a conversa for reiniciada) */
+  let inflight = null;
+  const RESET = "reset"; // motivo do cancelamento quando a conversa é reiniciada
 
   // ------------------------------------------------------------------ helpers
   const store = {
@@ -264,6 +267,14 @@
     els.chips.querySelectorAll("button").forEach((b) => (b.disabled = value));
   }
 
+  // Voltou para um arco anterior: o que já foi conversado pode ser spoiler para o novo arco. As mensagens
+  // ficam na tela (esmaecidas) para comparação, mas não vão mais para o modelo; resposta a caminho é descartada.
+  function forgetConversation() {
+    inflight?.abort(RESET);
+    history = [];
+    els.messages.querySelectorAll(":scope > *").forEach((n) => n.classList.add("opacity-50"));
+  }
+
   async function sendMessage(text) {
     const message = text.trim();
     if (!message || busy) return;
@@ -271,7 +282,7 @@
     if (!arc) {
       els.arc.focus();
       els.arc.classList.add("ring-2", "ring-gold");
-      addNotice("⚓ Antes de zarpar, escolha no topo onde você está no anime — assim evito spoilers!");
+      addNotice("⚓ Antes de zarpar, escolha no topo até onde você já assistiu — assim evito spoilers!");
       return;
     }
 
@@ -281,6 +292,9 @@
     updateCounter();
     setBusy(true);
     showTyping();
+    const controller = new AbortController();
+    inflight = controller;
+    const wasReset = () => controller.signal.aborted && controller.signal.reason === RESET;
 
     try {
       const res = await fetch("/api/chat", {
@@ -292,8 +306,10 @@
           // 6 mensagens x 1500 chars mantém o corpo bem abaixo do client_max_body_size 16k do nginx
           history: history.slice(-HISTORY_LIMIT).map((h) => ({ role: h.role, content: h.content.slice(0, HISTORY_ITEM_CHARS) })),
         }),
+        signal: controller.signal,
       });
       const data = await res.json().catch(() => ({}));
+      if (wasReset()) return; // a conversa foi reiniciada enquanto a resposta chegava
       if (!res.ok) {
         const detail = typeof data.detail === "string" ? data.detail : null;
         throw new Error(
@@ -305,9 +321,12 @@
       history.push({ role: "user", content: message }, { role: "assistant", content: data.reply });
     } catch (err) {
       hideTyping();
+      if (wasReset()) return; // cancelado de propósito: sem mensagem de erro
       const msg = err instanceof TypeError ? "Não consegui alcançar o servidor. Verifique sua conexão." : err.message;
       addBotMessage(`**Tempestade à vista!** ${msg}`, [], { error: true });
     } finally {
+      hideTyping();
+      if (inflight === controller) inflight = null;
       setBusy(false);
       els.input.focus();
     }
@@ -343,7 +362,7 @@
   function welcome() {
     addBotMessage(
       "Ahoy! Eu sou o **Log Pose AI** 🧭 — seu guia pelo mundo de **One Piece**.\n\n" +
-        "1. Escolha no topo **onde você está no anime**: eu nunca conto nada que aconteça depois desse ponto.\n" +
+        "1. Escolha no topo **até onde você já assistiu**: eu nunca conto nada que aconteça depois desse ponto.\n" +
         "2. Pergunte sobre personagens, Akuma no Mi, recompensas, navios, ilhas, arcos, fillers ou teorias.\n\n" +
         "_Só navego pelos mares de One Piece — outros assuntos ficam fora da minha rota._"
     );
@@ -360,12 +379,21 @@
     const saved = store.get(STORAGE_KEY);
     if (saved && ARCS.some((a) => a.id === saved)) els.arc.value = saved;
 
+    let lastArcId = els.arc.value;
     els.arc.addEventListener("change", () => {
       els.arc.classList.remove("ring-2", "ring-gold");
       store.set(STORAGE_KEY, els.arc.value);
       const arc = currentArc();
+      const wentBack = Boolean(arc && lastArcId) && arcIndex(arc.id) < arcIndex(lastArcId);
+      lastArcId = els.arc.value;
       renderChips();
-      if (arc) addNotice(`🗺️ Posição atualizada: ${arc.label} — respostas filtradas até aqui.`);
+      if (!arc) return;
+      if (wentBack && (history.length || inflight)) {
+        forgetConversation();
+        addNotice(`⏪ Você voltou para ${arc.label}: esqueci a conversa anterior para não levar spoilers adiante.`);
+      } else {
+        addNotice(`🗺️ Posição atualizada: ${arc.label} — respostas filtradas até aqui.`);
+      }
     });
 
     renderChips();
@@ -377,6 +405,7 @@
       if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); sendMessage(els.input.value); }
     });
     els.clear.addEventListener("click", () => {
+      inflight?.abort(RESET); // resposta atrasada não pode cair na conversa nova
       history = [];
       els.messages.replaceChildren();
       welcome();
