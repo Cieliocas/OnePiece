@@ -67,6 +67,18 @@
   /** @type {AbortController | null} pedido em andamento (cancelado se a conversa for reiniciada) */
   let inflight = null;
   const RESET = "reset"; // motivo do cancelamento quando a conversa é reiniciada
+  const TIMEOUT = "timeout";
+  const CLIENT_TIMEOUT_MS = 100_000; // acima do proxy_read_timeout do nginx (90 s): o servidor tem a chance de responder antes
+  const TIMEOUT_MESSAGE = "A resposta demorou demais. Tente de novo.";
+  // Para erros sem `detail` em JSON (ex.: 500 em texto puro, página HTML do nginx)
+  const STATUS_MESSAGES = {
+    413: "Mensagem grande demais para o Log Pose. Encurte a pergunta.",
+    429: "Calma, marujo! Muitas perguntas seguidas. Aguarde alguns segundos.",
+    500: "O servidor tropeçou ao preparar a resposta. Tente de novo.",
+    502: "O serviço de IA não respondeu direito. Tente de novo em instantes.",
+    503: "O Log Pose está fora do ar no momento. Tente de novo em instantes.",
+    504: TIMEOUT_MESSAGE,
+  };
 
   // ------------------------------------------------------------------ helpers
   const store = {
@@ -295,6 +307,7 @@
     const controller = new AbortController();
     inflight = controller;
     const wasReset = () => controller.signal.aborted && controller.signal.reason === RESET;
+    const timer = setTimeout(() => controller.abort(TIMEOUT), CLIENT_TIMEOUT_MS);
 
     try {
       const res = await fetch("/api/chat", {
@@ -310,11 +323,10 @@
       });
       const data = await res.json().catch(() => ({}));
       if (wasReset()) return; // a conversa foi reiniciada enquanto a resposta chegava
+      if (controller.signal.aborted) throw new Error(TIMEOUT_MESSAGE);
       if (!res.ok) {
         const detail = typeof data.detail === "string" ? data.detail : null;
-        throw new Error(
-          res.status === 429 && !detail ? "Calma, marujo! Muitas perguntas seguidas. Aguarde alguns segundos." : detail || `Erro ${res.status} no servidor.`
-        );
+        throw new Error(detail || STATUS_MESSAGES[res.status] || `Erro ${res.status} no servidor.`);
       }
       hideTyping();
       addBotMessage(data.reply, Array.isArray(data.cards) ? data.cards : [], { arc });
@@ -322,9 +334,12 @@
     } catch (err) {
       hideTyping();
       if (wasReset()) return; // cancelado de propósito: sem mensagem de erro
-      const msg = err instanceof TypeError ? "Não consegui alcançar o servidor. Verifique sua conexão." : err.message;
+      const msg = controller.signal.reason === TIMEOUT ? TIMEOUT_MESSAGE
+        : err instanceof TypeError ? "Não consegui alcançar o servidor. Verifique sua conexão."
+        : err.message;
       addBotMessage(`**Tempestade à vista!** ${msg}`, [], { error: true });
     } finally {
+      clearTimeout(timer);
       hideTyping();
       if (inflight === controller) inflight = null;
       setBusy(false);
