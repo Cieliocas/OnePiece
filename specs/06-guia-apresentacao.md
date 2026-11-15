@@ -44,13 +44,18 @@ Durante a aula, deixe um terminal aberto com `docker compose logs -f backend` pa
 
 ## 3. Roteiro ao vivo (4 perguntas)
 
+As perguntas dos passos 1, 2 e 4 aparecem como sugestões nos arcos usados: dá para clicar em vez de digitar.
+Se o projetor deixar o tema escuro apagado, use o botão ☀️ (modo dia) no topo.
+
 **1 · Consulta factual com card** — arco: *Water 7 / Enies Lobby*
 > "Quem é Monkey D. Luffy e qual a recompensa dele?"
 
-Esperado: card com retrato e ฿ 300.000.000 (valor pós-Enies Lobby). No log: `tools: ['search_characters']`
-e depois `['show_cards']`.
+Esperado: card com ฿ 300.000.000 (valor pós-Enies Lobby) e o retrato **borrado** — a API só tem retratos
+pós-timeskip; clique em **Revelar** para mostrar. Embaixo da resposta: "🧭 Filtrado até Water 7 / Enies Lobby".
+No log: `tools: ['search_characters']` e depois `['show_cards']`.
 
-**2 · Filtro anti-spoiler** — mudar o seletor para *East Blue* e perguntar de novo:
+**2 · Filtro anti-spoiler** — mudar o seletor para *East Blue* (a conversa anterior fica esmaecida e deixa de ser
+enviada ao modelo) e perguntar de novo:
 > "Qual a recompensa do Luffy?"
 
 Esperado: ฿ 30.000.000 (pós-Arlong Park). A API devolve o histórico até ฿ 3.000.000.000, mas o bot não revela.
@@ -64,7 +69,8 @@ Teste o roteiro antes: o modelo pode errar a cronologia em casos-limite (SPEC 03
 
 Mostrar: recusa educada no personagem, convidando a voltar para One Piece.
 
-**4 · Cache / velocidade** — pergunte sobre uma entidade **não aquecida** e depois repita:
+**4 · Cache / velocidade** — arco: *Water 7 / Enies Lobby* (em East Blue a Robin ainda não apareceu). Pergunte
+sobre uma entidade **não aquecida** e depois repita:
 > "Quem é Nico Robin?" (duas vezes)
 
 Mostrar no terminal do backend:

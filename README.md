@@ -34,12 +34,22 @@ com dados reais da [onepieceapi.com](https://onepieceapi.com) via *Function Call
 - **Respostas com LLM** (Gemini 2.5 Flash) em português, com Markdown.
 - **Dados reais** de personagens, recompensas, Akuma no Mi, navios, ilhas e tripulações (onepieceapi.com), consultados
   pelo próprio modelo via *Function Calling*.
-- **Cards visuais**: retrato, nome, recompensa em Berries (฿), fruta e afiliação.
-- **Filtro anti-spoiler**: o usuário escolhe onde está no anime (East Blue → Egghead) e o bot nunca revela eventos,
-  mortes ou recompensas posteriores.
+- **Cards visuais**: retrato, nome, recompensa em Berries (฿), fruta e afiliação. Antes da Ilha dos Homens-Peixe, o
+  retrato vem borrado (os da API são pós-timeskip), com um botão *Revelar*.
+- **Filtro anti-spoiler**: o usuário escolhe até onde já assistiu (East Blue → Egghead) e o bot nunca revela eventos,
+  mortes ou recompensas posteriores. Ao voltar para um arco anterior, a conversa anterior deixa de ser enviada ao modelo.
 - **Escopo fechado**: recusa educadamente assuntos fora de One Piece e tentativas de *prompt injection*.
 - **Cache Redis (TTL 1h)**: a segunda consulta à mesma entidade não sai para a internet (~1 s → ~2 ms).
 - **Proteções**: rate limit por IP, validação de entrada, containers isolados, usuário non-root.
+- **Modo dia e noite**: botão ☀️/🌙 no topo; na primeira visita segue o tema do sistema e depois lembra a escolha
+  (contraste WCAG AA nos dois temas).
+- **Sugestões por arco**: perguntas prontas que só citam o que já aconteceu até o arco escolhido, e contador `x/500`.
+
+<p align="center">
+  <img src="docs/img/tema-noite.png" alt="Log Pose AI no modo noite" width="40%" />
+  <img src="docs/img/tema-dia.png" alt="Log Pose AI no modo dia" width="40%" />
+  <img src="docs/img/celular-dia.png" alt="Log Pose AI no celular, modo dia" width="14%" />
+</p>
 
 ## Requisitos da avaliação × implementação
 
@@ -101,7 +111,7 @@ com dados reais da [onepieceapi.com](https://onepieceapi.com) via *Function Call
 ### Pela interface web
 
 1. Acesse `http://<IP-PUBLICO-DA-EC2>/`.
-2. Escolha no topo **"Onde você está no anime?"** (obrigatório).
+2. Escolha no topo **"Até onde você já assistiu?"** (obrigatório). O botão ☀️/🌙 alterna entre modo dia e noite.
 3. Digite uma pergunta ou clique em uma das sugestões. Cada aba do navegador é um usuário independente.
 
 ### Pela API
@@ -241,6 +251,7 @@ Cobrem: validação de entrada, limite de histórico, loop de *Function Calling*
 ├── README.md                 # este arquivo
 ├── CLAUDE.md                 # guia técnico detalhado para desenvolvedores
 ├── specs/                    # especificações (arquitetura, segurança, limites, custos, equipe, apresentação)
+├── docs/img/                 # capturas de tela usadas neste README
 ├── docker-compose.yml        # nginx + backend + redis
 ├── setup-ec2.sh              # deploy automatizado na EC2
 ├── .env.example              # modelo de configuração (GEMINI_API_KEY)

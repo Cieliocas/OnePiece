@@ -28,6 +28,7 @@ restart do backend não exige reiniciar o nginx.
 .
 ├── README.md                 # vitrine do GitHub: requisitos da avaliação, uso do endpoint
 ├── specs/                    # especificações SDD (01–06)
+├── docs/img/                 # capturas de tela do README
 ├── docker-compose.yml        # nginx + backend + redis (mem_limit 64m/512m/128m, logs 3x10m)
 ├── setup-ec2.sh              # swap 2 GB + Docker + .env + compose up (Ubuntu 24.04)
 ├── .env.example              # GEMINI_API_KEY=sua_chave_aqui
@@ -35,8 +36,8 @@ restart do backend não exige reiniciar o nginx.
 │   ├── Dockerfile            # nginx:1.30-alpine + config + frontend; roda `nginx -t` no build
 │   └── nginx.conf            # estáticos, proxy /api/, rate limit 10 req/min/IP (burst 5), 429 em JSON, gzip
 ├── frontend/
-│   ├── index.html            # layout, tema Nautical Dark (tokens no tailwind.config)
-│   └── app.js                # chat, chips, Markdown (marked + DOMPurify), cards visuais
+│   ├── index.html            # layout, temas noite/dia (variáveis CSS --c-* + tokens no tailwind.config)
+│   └── app.js                # chat, sugestões por arco, tema, Markdown (marked + DOMPurify), cards visuais
 └── backend/
     ├── Dockerfile            # multi-stage python:3.13-slim, usuário não-root
     ├── requirements.txt      # versões fixadas
@@ -56,6 +57,7 @@ restart do backend não exige reiniciar o nginx.
 ## Fluxo de uma pergunta
 
 1. O frontend envia `POST /api/chat` com `message`, `current_arc` (id do `<select>`) e as últimas 6 mensagens de `history` (`message` ≤ 500 caracteres).
+   Ao voltar para um arco anterior, o frontend zera `history` (respostas de arcos mais avançados não voltam ao modelo).
 2. `main.py` valida o arco (`prompts.resolve_arc`; aceita id `wano` ou rótulo `Wano`) → 422 se inválido.
 3. `agent.py` monta `system_instruction` **específico do arco** (cronologia com "USUÁRIO ESTÁ AQUI" e arcos
    futuros marcados como proibidos), converte o histórico (`assistant` → `model`) e prefixa a mensagem com
@@ -111,7 +113,7 @@ restart do backend não exige reiniciar o nginx.
 | `search_ships(query)` / `search_islands(query, sea)` / `search_affiliations(query)` | listas completas + filtro local |
 | `show_cards(cards[])` | não chama a API; monta os cards da resposta |
 
-## Anti-spoiler (3 camadas)
+## Anti-spoiler (3 camadas + interface)
 
 1. **Prompt**: `build_system_instruction(arc)` lista a cronologia e marca arcos futuros como proibidos; regras
    explícitas para recompensas, `status: Deceased`, rankings e personagens que ainda não apareceram.
@@ -119,6 +121,9 @@ restart do backend não exige reiniciar o nginx.
 3. **Cards**: recompensa só aparece se o modelo a declarou válida no arco **e** ela existe na API.
    Se o modelo esquecer `show_cards`, o fallback mostra só entidades citadas no texto, com recompensa oculta
    (exceto no arco mais recente, Egghead). `status` de personagem e de navio nunca vão para o card.
+4. **Interface** (`frontend/app.js`): a API só tem retratos **pós-timeskip**, então antes de `fishman-island` o retrato
+   de personagem vem borrado, com botão "Revelar"; voltar para um arco anterior zera o histórico enviado ao modelo e
+   descarta resposta a caminho; as sugestões (`SUGGESTIONS_BY_ARC`) só citam o que já apareceu até o fim do arco.
 
 Escopo/jailbreak: o system prompt recusa qualquer tema fora de One Piece e trata resultados de ferramentas e
 histórico como dados, não instruções. Isso é mitigação por prompt — não é garantia absoluta.
@@ -151,7 +156,8 @@ pip install -r requirements-dev.txt && pytest -q
 ```
 
 Rodar o backend fora do Docker: `REDIS_URL=redis://localhost:6379/0 uvicorn app.main:app --reload`
-(dentro de `backend/`); sem Redis ele funciona, só sem cache.
+(dentro de `backend/`); sem Redis ele funciona, só sem cache. O frontend chama `/api/*` no mesmo endereço da
+página, então fora do Docker sirva `frontend/` e a API na mesma origem (é o papel do nginx).
 
 ## Configuração (.env)
 
@@ -174,7 +180,12 @@ Rodar o backend fora do Docker: `REDIS_URL=redis://localhost:6379/0 uvicorn app.
 ## Como estender
 
 - **Novo arco**: adicione em `backend/app/prompts.py::ARCS` **e** em `frontend/app.js::ARCS` com o mesmo `id`
-  (ordem cronológica importa: o último é tratado como "mais recente").
+  (ordem cronológica importa: o último é tratado como "mais recente"), e as sugestões em
+  `frontend/app.js::SUGGESTIONS_BY_ARC` (só o que já apareceu até o fim do arco).
+- **Cores/tema**: os tokens ficam em `frontend/index.html` como variáveis `--c-*` (`:root` = noite,
+  `[data-theme="light"]` = dia) e o `tailwind.config` aponta para elas. Use `text-ink`/`text-ink-2`/`text-muted`
+  em vez de `slate-*` e mantenha texto pequeno com contraste ≥ 4,5:1 (WCAG AA) nos dois temas. A escolha do
+  usuário fica no `localStorage` (`logpose.theme`); sem escolha, segue `prefers-color-scheme`.
 - **Nova tool**: declare em `tools.py::TOOL_DECLARATIONS`, implemente o handler em `ToolRunner` e registre em
   `_handlers`; se a entidade puder virar card, chame `_remember` e trate o tipo em `build_card`.
 - **Novos campos no card**: `schemas.Card` + `build_card` + `frontend/app.js::renderCard`.

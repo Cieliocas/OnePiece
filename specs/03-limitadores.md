@@ -27,8 +27,9 @@ Teste: `for i in $(seq 1 10); do curl -s -o /dev/null -w '%{http_code} ' localho
 | Saída do modelo | `max_output_tokens=4096`, `thinking_budget=1024` | `agent._config` |
 | Cards | máx. 4 por resposta | `tools.MAX_CARDS` |
 
-O frontend espelha os limites (`maxlength=500`, envia só 6 mensagens, cada uma cortada em 1500 caracteres para
-o corpo nunca passar de 16 KB), mas **o backend é a fonte da verdade**.
+O frontend espelha os limites (`maxlength=500` com contador `x/500`, envia só 6 mensagens, cada uma cortada em
+1500 caracteres para o corpo nunca passar de 16 KB, e desiste de esperar após 100 s, acima dos 90 s do nginx),
+mas **o backend é a fonte da verdade**.
 
 ## 3. IA (Prompt & Escopo)
 
@@ -44,5 +45,8 @@ o corpo nunca passar de 16 KB), mas **o backend é a fonte da verdade**.
 4. **Reforço por mensagem** — `[Arco atual do usuário: X]` antes de cada pergunta.
 5. **Trava nos cards** — recompensa só aparece se o modelo a declarou válida para o arco **e** ela existe no
    histórico real da API; `status` (ex.: `Deceased`) nunca vai para o card.
+6. **Interface** — retratos de personagem (na API, sempre pós-timeskip) vêm borrados antes da *Ilha dos
+   Homens-Peixe*, com botão *Revelar*; ao voltar para um arco anterior o frontend zera o histórico enviado (respostas
+   de arcos mais avançados não voltam ao modelo); as sugestões por arco só citam o que já apareceu até o fim do arco.
 
 Limite honesto: guardrails de prompt reduzem, mas não eliminam, erros do modelo em casos-limite.

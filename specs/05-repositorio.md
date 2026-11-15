@@ -9,6 +9,7 @@
 ├── README.md                 # visão geral, uso do endpoint, requisitos da avaliação
 ├── CLAUDE.md                 # guia técnico para quem continua o projeto
 ├── specs/                    # estas especificações (fonte da verdade)
+├── docs/img/                 # capturas de tela usadas no README
 ├── docker-compose.yml        # nginx + backend + redis
 ├── setup-ec2.sh              # swap + Docker + .env + deploy
 ├── .env.example              # modelo; o .env real NUNCA vai para o Git
@@ -51,9 +52,16 @@ Regra: mudou um limite, rota ou contrato → atualize a spec correspondente **no
 - [ ] Script de carga leve (10 req em sequência) confirmando 429 do nginx após 6.
 
 ### Membro 3 — polimento de UI · branch `feat/chips-por-arco`
-- [ ] Chips de perguntas sugeridas **por arco** (mapa `arcId → perguntas` em `frontend/app.js`; trocar ao mudar o `<select>`).
-- [ ] Contador de caracteres `x/500` no campo de texto.
+- [x] Chips de perguntas sugeridas **por arco** (mapa `arcId → perguntas` em `frontend/app.js`; trocar ao mudar o `<select>`).
+- [x] Contador de caracteres `x/500` no campo de texto.
 - [ ] Revisar mobile em 360 px e 414 px: header, chips roláveis, cards em 1 coluna, teclado não cobrindo o input.
-- [ ] Estado vazio/erro para imagem de card (já há fallback com iniciais — validar visual).
-- [ ] Mensagem clara quando o nginx retornar 429 (usar `detail` do JSON).
-- [ ] Checar contraste (WCAG AA) do dourado `#F4A261` e teal `#2A9D8F` sobre `#1C2541`.
+  Validado por teste automático nos dois temas (sem rolagem lateral, controles visíveis, cards em 1 coluna);
+  falta conferir o teclado virtual num celular de verdade.
+- [x] Estado vazio/erro para imagem de card (já há fallback com iniciais — validar visual).
+- [x] Mensagem clara quando o nginx retornar 429 (usar `detail` do JSON).
+- [x] Checar contraste (WCAG AA) do dourado `#F4A261` e teal `#2A9D8F` sobre `#1C2541`.
+  Dourado 7,3:1 e teal 4,5:1 passam; o selo de tipo do card, o "Wanted", os rótulos cinza e o placeholder ficavam
+  abaixo de 4,5:1 e foram corrigidos. O tema dia também fica ≥ 4,5:1.
+- [x] Extra: modo dia/noite (botão no cabeçalho; segue o tema do sistema e lembra a escolha).
+- [x] Extra: retrato pós-timeskip borrado antes da Ilha dos Homens-Peixe; selo "Filtrado até <arco>" em cada
+  resposta; voltar de arco zera o histórico enviado; mensagens de erro claras e limite de 100 s no navegador.
