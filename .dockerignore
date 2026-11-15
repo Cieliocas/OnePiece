@@ -1,0 +1,9 @@
+# Contexto de build da imagem nginx (raiz do repo): só precisa de nginx/ e frontend/
+.env
+.env.*
+.git
+backend
+**/__pycache__
+**/.DS_Store
+*.md
+setup-ec2.sh

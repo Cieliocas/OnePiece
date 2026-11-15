@@ -1,0 +1,6 @@
+# Dependências de produção (versões fixadas para builds reprodutíveis)
+fastapi==0.162.7
+uvicorn==0.54.0
+google-genai==3.3.0
+redis==8.1.0
+httpx==0.28.1

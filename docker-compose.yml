@@ -1,0 +1,61 @@
+name: logpose-ai
+
+# Rotação de logs (SPEC 04): no máximo 3 x 10 MB por container
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  nginx:
+    build:
+      context: .
+      dockerfile: nginx/Dockerfile
+    image: logpose-ai/nginx:latest
+    ports:
+      - "80:80"               # ÚNICA porta publicada no host (SPEC 02)
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    mem_limit: 64m
+    logging: *default-logging
+    networks: [logpose-net]
+
+  backend:
+    build: ./backend
+    image: logpose-ai/backend:latest
+    env_file:
+      - path: .env
+        required: false       # sem .env o app sobe e /api/chat responde 503 explicando
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      CACHE_TTL_SECONDS: ${CACHE_TTL_SECONDS:-3600}
+    expose:
+      - "8000"                # só na rede interna — sem `ports:`
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    mem_limit: 512m
+    logging: *default-logging
+    networks: [logpose-net]
+
+  redis:
+    image: redis:alpine
+    # Cache puro: sem persistência em disco e com teto de memória
+    command: ["redis-server", "--save", "", "--appendonly", "no", "--maxmemory", "64mb", "--maxmemory-policy", "allkeys-lru"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+    mem_limit: 128m
+    logging: *default-logging
+    networks: [logpose-net]
+
+networks:
+  logpose-net:
+    driver: bridge
