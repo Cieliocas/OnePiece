@@ -6,6 +6,7 @@
 
 ```
 .
+├── README.md                 # visão geral, uso do endpoint, requisitos da avaliação
 ├── CLAUDE.md                 # guia técnico para quem continua o projeto
 ├── specs/                    # estas especificações (fonte da verdade)
 ├── docker-compose.yml        # nginx + backend + redis

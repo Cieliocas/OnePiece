@@ -26,6 +26,7 @@ restart do backend não exige reiniciar o nginx.
 
 ```
 .
+├── README.md                 # vitrine do GitHub: requisitos da avaliação, uso do endpoint
 ├── specs/                    # especificações SDD (01–06)
 ├── docker-compose.yml        # nginx + backend + redis (mem_limit 64m/512m/128m, logs 3x10m)
 ├── setup-ec2.sh              # swap 2 GB + Docker + .env + compose up (Ubuntu 24.04)
