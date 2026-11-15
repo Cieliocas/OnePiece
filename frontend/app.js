@@ -17,6 +17,8 @@
     { id: "wano", label: "Wano", eps: "890–1085" },
     { id: "egghead", label: "Egghead", eps: "1086+" },
   ];
+  // Os retratos da API são pós-timeskip (ex.: a cicatriz em X do Luffy). Antes deste arco eles vêm borrados.
+  const TIMESKIP_ARC = "fishman-island";
 
   // Sugestões por arco (SPEC 05): só citam o que já apareceu até o FIM do arco escolhido, para a própria
   // sugestão não entregar spoiler. Os arcos do roteiro da demo (SPEC 06) trazem as perguntas dele.
@@ -86,7 +88,15 @@
 
   const formatBerries = (n) => `฿ ${Number(n).toLocaleString("pt-BR")}`;
   const currentArc = () => ARCS.find((a) => a.id === els.arc.value);
-  const scrollToBottom = () => els.log.scrollTo({ top: els.log.scrollHeight, behavior: "smooth" });
+  const arcIndex = (id) => ARCS.findIndex((a) => a.id === id);
+  const isPreTimeskip = (arc) => Boolean(arc) && arcIndex(arc.id) < arcIndex(TIMESKIP_ARC);
+  // Rola até o fim agora e de novo logo depois: o Tailwind (CDN) gera o CSS das classes novas um instante após
+  // a mensagem entrar na tela, o que muda a altura dela (sem isso, o fim da mensagem ficava escondido).
+  const scrollToBottom = () => {
+    const go = () => els.log.scrollTo({ top: els.log.scrollHeight, behavior: "smooth" });
+    go();
+    setTimeout(go, 250);
+  };
 
   // ------------------------------------------------------------------ tema (noite/dia)
   // O <head> já aplicou o tema antes de desenhar a página; aqui ficam o botão e a troca.
@@ -134,7 +144,8 @@
     scrollToBottom();
   }
 
-  function addBotMessage(markdown, cards = [], { error = false } = {}) {
+  // `arc` = arco escolhido no momento da pergunta (define o selo e se os retratos vêm borrados)
+  function addBotMessage(markdown, cards = [], { error = false, arc = null } = {}) {
     const row = el("div", "flex gap-3");
     const col = el("div", "min-w-0 max-w-[92%] flex-1 sm:flex-none");
     const bubble = el(
@@ -145,7 +156,8 @@
     );
     bubble.innerHTML = renderMarkdown(markdown);
     col.append(bubble);
-    if (cards.length) col.append(renderCards(cards));
+    if (cards.length) col.append(renderCards(cards, arc));
+    if (arc && !error) col.append(el("p", "mt-1.5 pl-1 text-[11px] text-muted", `🧭 Filtrado até ${arc.label} (ep. ${arc.eps})`));
     row.append(botAvatar(), col);
     els.messages.append(row);
     scrollToBottom();
@@ -171,26 +183,41 @@
   const hideTyping = () => document.getElementById("typing")?.remove();
 
   // ------------------------------------------------------------------ cards visuais
-  function renderCards(cards) {
+  function renderCards(cards, arc) {
     const grid = el("div", "mt-3 grid gap-3 sm:grid-cols-2");
-    cards.forEach((c) => grid.append(renderCard(c)));
+    cards.forEach((c) => grid.append(renderCard(c, arc)));
     return grid;
   }
 
-  function portrait(card) {
+  function portrait(card, arc) {
     const wrap = el("div", "relative h-32 w-24 shrink-0 overflow-hidden rounded-lg border border-rope bg-abyss");
     const initials = (card.name || "?").split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
     const fallback = el("div", "flex h-full w-full items-center justify-center bg-gradient-to-br from-rope to-abyss font-pirate text-3xl text-gold", initials);
-    if (card.image_url) {
-      const img = el("img", `h-full w-full ${card.type === "character" ? "object-cover object-top" : "object-contain p-1"}`);
-      img.src = card.image_url;
-      img.alt = `Imagem de ${card.name}`;
-      img.loading = "lazy";
-      img.referrerPolicy = "no-referrer";
-      img.onerror = () => img.replaceWith(fallback);
-      wrap.append(img);
-    } else {
+    if (!card.image_url) {
       wrap.append(fallback);
+      return wrap;
+    }
+    const img = el("img", `h-full w-full ${card.type === "character" ? "object-cover object-top" : "object-contain p-1"}`);
+    img.src = card.image_url;
+    img.alt = `Imagem de ${card.name}`;
+    img.loading = "lazy";
+    img.referrerPolicy = "no-referrer";
+    img.onerror = () => wrap.replaceChildren(fallback);
+    wrap.append(img);
+
+    // Spoiler visual: retrato de personagem antes do timeskip vem borrado até o usuário pedir para ver
+    if (card.type === "character" && isPreTimeskip(arc)) {
+      img.classList.add("spoiler-blur", "transition", "duration-300", "motion-reduce:transition-none");
+      const reveal = el("button", "absolute inset-0 flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-gold");
+      reveal.type = "button";
+      reveal.title = "Retrato pós-timeskip: pode ter spoiler visual";
+      reveal.setAttribute("aria-label", `Revelar retrato de ${card.name} (é pós-timeskip e pode ter spoiler visual)`);
+      reveal.append(el("span", "rounded-full border border-rope bg-hull/90 px-2 py-1 text-[11px] font-semibold text-ink shadow", "👁 Revelar"));
+      reveal.addEventListener("click", () => {
+        img.classList.remove("spoiler-blur");
+        reveal.remove();
+      });
+      wrap.append(reveal);
     }
     return wrap;
   }
@@ -204,10 +231,10 @@
     return row;
   }
 
-  function renderCard(card) {
+  function renderCard(card, arc) {
     const isWanted = card.type === "character" && card.bounty != null;
     const article = el("article", `flex gap-3 rounded-xl border bg-hull p-3 shadow-lg shadow-black/20 ${isWanted ? "border-gold/60" : "border-rope"}`);
-    article.append(portrait(card));
+    article.append(portrait(card, arc));
 
     const body = el("div", "flex min-w-0 flex-1 flex-col gap-1");
     const badge = el("span", "w-fit rounded-full border border-sea/50 bg-sea/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-sea-ink", TYPE_LABEL[card.type] || card.type);
@@ -274,7 +301,7 @@
         );
       }
       hideTyping();
-      addBotMessage(data.reply, Array.isArray(data.cards) ? data.cards : []);
+      addBotMessage(data.reply, Array.isArray(data.cards) ? data.cards : [], { arc });
       history.push({ role: "user", content: message }, { role: "assistant", content: data.reply });
     } catch (err) {
       hideTyping();
