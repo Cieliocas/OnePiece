@@ -39,11 +39,13 @@
   const HISTORY_LIMIT = 6; // SPEC 03 (o backend também corta em 6)
   const HISTORY_ITEM_CHARS = 1500;
   const STORAGE_KEY = "logpose.arc";
+  const THEME_KEY = "logpose.theme"; // o mesmo nome é lido no <head> do index.html
+  const THEME_COLOR = { dark: "#0B132B", light: "#F6F0E2" }; // <meta name="theme-color">
 
   const $ = (sel) => document.querySelector(sel);
   const els = {
     arc: $("#arc"), log: $("#log"), messages: $("#messages"), chips: $("#chips"),
-    form: $("#composer"), input: $("#input"), send: $("#send"), clear: $("#clear"),
+    form: $("#composer"), input: $("#input"), send: $("#send"), clear: $("#clear"), theme: $("#theme"),
   };
 
   /** @type {{role: "user"|"assistant", content: string}[]} */
@@ -75,6 +77,36 @@
   const currentArc = () => ARCS.find((a) => a.id === els.arc.value);
   const scrollToBottom = () => els.log.scrollTo({ top: els.log.scrollHeight, behavior: "smooth" });
 
+  // ------------------------------------------------------------------ tema (noite/dia)
+  // O <head> já aplicou o tema antes de desenhar a página; aqui ficam o botão e a troca.
+  const prefersLight = window.matchMedia ? window.matchMedia("(prefers-color-scheme: light)") : null;
+  const systemTheme = () => (prefersLight?.matches ? "light" : "dark");
+  const savedTheme = () => {
+    const t = store.get(THEME_KEY);
+    return t === "light" || t === "dark" ? t : null;
+  };
+
+  function applyTheme(theme) {
+    document.documentElement.dataset.theme = theme;
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", THEME_COLOR[theme]);
+    const label = theme === "light" ? "Ativar modo noite" : "Ativar modo dia";
+    els.theme.setAttribute("aria-label", label);
+    els.theme.title = label;
+  }
+
+  function initTheme() {
+    applyTheme(savedTheme() || systemTheme());
+    els.theme.addEventListener("click", () => {
+      const next = document.documentElement.dataset.theme === "light" ? "dark" : "light";
+      store.set(THEME_KEY, next);
+      applyTheme(next);
+    });
+    // Sem escolha manual, acompanha o sistema (ex.: Windows trocando de tema no fim do dia)
+    prefersLight?.addEventListener?.("change", () => {
+      if (!savedTheme()) applyTheme(systemTheme());
+    });
+  }
+
   // ------------------------------------------------------------------ mensagens
   function botAvatar() {
     const a = el("div", "mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-gold/60 bg-hull text-base");
@@ -85,7 +117,7 @@
 
   function addUserMessage(text) {
     const row = el("div", "flex justify-end");
-    const bubble = el("div", "max-w-[85%] whitespace-pre-wrap break-words rounded-2xl rounded-br-sm border border-sea/50 bg-sea/15 px-4 py-2.5 text-sm text-slate-100", text);
+    const bubble = el("div", "max-w-[85%] whitespace-pre-wrap break-words rounded-2xl rounded-br-sm border border-sea/50 bg-sea/15 px-4 py-2.5 text-sm text-ink", text);
     row.append(bubble);
     els.messages.append(row);
     scrollToBottom();
@@ -97,7 +129,7 @@
     const bubble = el(
       "div",
       `md rounded-2xl rounded-tl-sm border px-4 py-3 text-sm leading-relaxed ${
-        error ? "border-red-400/50 bg-red-500/10 text-red-100" : "border-rope bg-hull text-slate-100"
+        error ? "is-error border-danger/50 bg-danger/10 text-danger-ink" : "border-rope bg-hull text-ink"
       }`
     );
     bubble.innerHTML = renderMarkdown(markdown);
@@ -109,7 +141,7 @@
   }
 
   function addNotice(text) {
-    const n = el("div", "mx-auto rounded-full border border-rope/70 px-3 py-1 text-center text-xs text-slate-400", text);
+    const n = el("div", "mx-auto rounded-full border border-rope/70 px-3 py-1 text-center text-xs text-muted", text);
     els.messages.append(n);
     scrollToBottom();
   }
@@ -117,7 +149,7 @@
   function showTyping() {
     const row = el("div", "flex gap-3");
     row.id = "typing";
-    const bubble = el("div", "flex items-center gap-2 rounded-2xl rounded-tl-sm border border-rope bg-hull px-4 py-3 text-xs text-slate-400");
+    const bubble = el("div", "flex items-center gap-2 rounded-2xl rounded-tl-sm border border-rope bg-hull px-4 py-3 text-xs text-muted");
     const dots = el("span", "flex gap-1");
     for (let i = 0; i < 3; i++) dots.append(el("span", "dot inline-block h-1.5 w-1.5 rounded-full bg-gold"));
     bubble.append(dots, el("span", null, "Consultando o Log Pose…"));
@@ -153,10 +185,10 @@
   }
 
   function infoRow(icon, label, value) {
-    const row = el("div", "flex items-start gap-1.5 text-xs text-slate-300");
+    const row = el("div", "flex items-start gap-1.5 text-xs text-ink-2");
     row.append(el("span", "shrink-0", icon));
     const txt = el("span", "min-w-0 break-words");
-    txt.append(el("span", "text-slate-500", `${label}: `), document.createTextNode(value));
+    txt.append(el("span", "text-muted", `${label}: `), document.createTextNode(value));
     row.append(txt);
     return row;
   }
@@ -167,20 +199,20 @@
     article.append(portrait(card));
 
     const body = el("div", "flex min-w-0 flex-1 flex-col gap-1");
-    const badge = el("span", "w-fit rounded-full border border-sea/50 bg-sea/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-sea", TYPE_LABEL[card.type] || card.type);
-    body.append(badge, el("h3", "truncate text-sm font-bold text-slate-50", card.name));
-    if (card.subtitle) body.append(el("p", "truncate text-xs text-slate-400", card.subtitle));
+    const badge = el("span", "w-fit rounded-full border border-sea/50 bg-sea/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-sea-ink", TYPE_LABEL[card.type] || card.type);
+    body.append(badge, el("h3", "truncate text-sm font-bold text-ink", card.name));
+    if (card.subtitle) body.append(el("p", "truncate text-xs text-muted", card.subtitle));
 
     if (card.bounty != null) {
       const b = el("div", "mt-1 rounded-md border border-gold/40 bg-gold/10 px-2 py-1");
-      b.append(el("p", "font-pirate text-[11px] uppercase tracking-[0.2em] text-gold/80", "Wanted · Recompensa"));
+      b.append(el("p", "font-pirate text-[11px] uppercase tracking-[0.2em] text-gold", "Wanted · Recompensa"));
       b.append(el("p", "font-mono text-sm font-bold text-gold", formatBerries(card.bounty)));
       body.append(b);
     }
     if (card.devil_fruit) body.append(infoRow("🍎", "Fruta", card.devil_fruit));
     if (card.affiliation) body.append(infoRow("🏴‍☠️", "Afiliação", card.affiliation));
     (card.details || []).forEach((d) => body.append(infoRow("•", d.label, d.value)));
-    if (card.note) body.append(el("p", "mt-1 text-xs italic text-slate-400", card.note));
+    if (card.note) body.append(el("p", "mt-1 text-xs italic text-muted", card.note));
 
     article.append(body);
     return article;
@@ -258,6 +290,7 @@
 
   // ------------------------------------------------------------------ init
   function init() {
+    initTheme();
     ARCS.forEach((a) => {
       const opt = el("option", null, `${a.label} (ep. ${a.eps})`);
       opt.value = a.id;
@@ -274,7 +307,7 @@
     });
 
     SUGGESTIONS.forEach((q) => {
-      const chip = el("button", "shrink-0 whitespace-nowrap rounded-full border border-rope bg-hull px-3 py-1.5 text-xs text-slate-200 transition hover:border-gold hover:text-gold focus:outline-none focus:ring-2 focus:ring-gold/40 disabled:opacity-50", q);
+      const chip = el("button", "shrink-0 whitespace-nowrap rounded-full border border-rope bg-hull px-3 py-1.5 text-xs text-ink-2 transition hover:border-gold hover:text-gold focus:outline-none focus:ring-2 focus:ring-gold/40 disabled:opacity-50", q);
       chip.type = "button";
       chip.addEventListener("click", () => sendMessage(q));
       els.chips.append(chip);
