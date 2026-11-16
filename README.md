@@ -119,7 +119,7 @@ com dados reais da [onepieceapi.com](https://onepieceapi.com) via *Function Call
 `POST /api/chat`
 
 ```bash
-curl -s http://<IP-PUBLICO-DA-EC2>/api/chat \
+curl -s http://18.221.248.8/api/chat \
   -H 'Content-Type: application/json' \
   -d '{
         "message": "Quem é o Zoro e qual a recompensa dele?",
@@ -159,7 +159,7 @@ Resposta `200`:
 Para continuar a conversa, envie as mensagens anteriores em `history`:
 
 ```bash
-curl -s http://<IP-PUBLICO-DA-EC2>/api/chat -H 'Content-Type: application/json' -d '{
+curl -s http://18.221.248.8/api/chat -H 'Content-Type: application/json' -d '{
   "message": "E qual era a recompensa dele antes disso?",
   "current_arc": "water-7",
   "history": [
@@ -231,7 +231,7 @@ Os containers voltam sozinhos quando a instância é religada. Detalhes de custo
 Verificação rápida:
 
 ```bash
-curl -s http://<IP-PUBLICO-DA-EC2>/api/health
+curl -s http://18.221.248.8/api/health
 ```
 
 ## Testes
