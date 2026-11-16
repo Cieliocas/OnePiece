@@ -1,4 +1,4 @@
-"""Loop de Function Calling com o SDK oficial `google-genai` (modelo gemini-2.5-flash).
+"""Loop de Function Calling com o SDK oficial `google-genai` (modelo gemini-3.5-flash por padrão).
 
 Usamos o loop MANUAL (automatic_function_calling desligado) para: (1) passar toda chamada pelo cache
 Redis via ToolRunner, (2) capturar os dados estruturados que viram `cards` e (3) limitar o nº de rodadas.

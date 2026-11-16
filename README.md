@@ -1,6 +1,6 @@
 # 🧭 Log Pose AI — Chatbot Guia de One Piece
 
-Chatbot multiusuário que responde perguntas sobre o universo de **One Piece** usando o LLM **Google Gemini 2.5 Flash**,
+Chatbot multiusuário que responde perguntas sobre o universo de **One Piece** usando o LLM **Google Gemini 3.5 Flash**,
 com dados reais da [onepieceapi.com](https://onepieceapi.com) via *Function Calling*, cache em **Redis** e um
 **filtro anti-spoiler** baseado no arco do anime em que o usuário está.
 
@@ -8,8 +8,8 @@ com dados reais da [onepieceapi.com](https://onepieceapi.com) via *Function Call
 > ministrada pelo **Prof. Armando Soares Sousa**. Apresentação presencial em 16/11/2026.
 > Equipe: ver [Equipe](#equipe).
 
-**🌐 Endpoint público:** `http://<IP-PUBLICO-DA-EC2>/` · **API:** `http://<IP-PUBLICO-DA-EC2>/api/chat` ·
-**Swagger:** `http://<IP-PUBLICO-DA-EC2>/api/docs`
+**🌐 Endpoint público:** `http://18.221.248.8/` · **API:** `http://18.221.248.8/api/chat` ·
+**Swagger:** `http://18.221.248.8/api/docs`
 
 ---
 
@@ -31,7 +31,7 @@ com dados reais da [onepieceapi.com](https://onepieceapi.com) via *Function Call
 ## Funcionalidades
 
 - **Chat multiusuário** via navegador ou HTTP: várias pessoas conversam ao mesmo tempo, cada uma com seu histórico.
-- **Respostas com LLM** (Gemini 2.5 Flash) em português, com Markdown.
+- **Respostas com LLM** (Gemini 3.5 Flash) em português, com Markdown.
 - **Dados reais** de personagens, recompensas, Akuma no Mi, navios, ilhas e tripulações (onepieceapi.com), consultados
   pelo próprio modelo via *Function Calling*.
 - **Cards visuais**: retrato, nome, recompensa em Berries (฿), fruta e afiliação. Antes da Ilha dos Homens-Peixe, o
@@ -58,7 +58,7 @@ com dados reais da [onepieceapi.com](https://onepieceapi.com) via *Function Call
 | **Conexão multiusuário / conexões concorrentes** | Backend **assíncrono** (FastAPI + Uvicorn/asyncio). Chamadas ao Gemini (`client.aio`), à API externa (`httpx.AsyncClient`) e ao Redis (`redis.asyncio`) não bloqueiam: enquanto um usuário espera o LLM, outros são atendidos. |
 | **Histórico isolado por usuário** | Cada cliente (aba do navegador) mantém o próprio histórico e o envia a cada pergunta (últimas 6 mensagens). O servidor não guarda estado compartilhado entre requisições, então não há como o histórico de um usuário vazar para outro. |
 | **Resposta direcionada ao usuário correto** | Cada pergunta é uma requisição HTTP independente e a resposta volta na mesma conexão. O estado de cada pergunta (ex.: entidades consultadas para os cards) vive em um objeto criado por requisição (`ToolRunner`), nunca global. |
-| **Responder perguntas com um LLM** | Google Gemini 2.5 Flash via SDK oficial `google-genai`, com *system instruction* e *Function Calling*. |
+| **Responder perguntas com um LLM** | Google Gemini 3.5 Flash via SDK oficial `google-genai`, com *system instruction* e *Function Calling*. |
 | **Qualidade e coerência das respostas** | Dados factuais vêm da API (não "alucinados"); recompensas exibidas nos cards são validadas contra o histórico real da API; *prompt* com persona, escopo e regras anti-spoiler. |
 | **Implantação na AWS EC2 (opcional)** | `setup-ec2.sh` prepara uma `t3.micro` Ubuntu 24.04 (swap, Docker, deploy) em ~5 min. |
 | **Acesso público** | Nginx publica a porta 80; interface web em `/` e API em `/api/*`. |
@@ -97,7 +97,7 @@ com dados reais da [onepieceapi.com](https://onepieceapi.com) via *Function Call
 
 | Escolha | Por quê |
 |---|---|
-| **Gemini 2.5 Flash** | Baixa latência e custo por token, cota gratuita no Google AI Studio (ideal para projeto acadêmico), *Function Calling* nativo para buscar dados reais e controle do orçamento de raciocínio (`thinking_budget`) para equilibrar qualidade e custo. |
+| **Gemini 3.5 Flash** | Baixa latência e custo por token, cota gratuita no Google AI Studio (ideal para projeto acadêmico), *Function Calling* nativo para buscar dados reais e controle do orçamento de raciocínio (`thinking_budget`) para equilibrar qualidade e custo. |
 | **SDK oficial `google-genai`** | Biblioteca atual e mantida pelo Google, com cliente **assíncrono** (`client.aio`), tipagem completa e suporte direto a *tools*. Dispensa camadas extras como LangChain, deixando o fluxo explícito e fácil de explicar. |
 | **Python + FastAPI + Uvicorn** | `async/await` nativo para lidar com muitas conexões concorrentes num único processo, validação automática com Pydantic e documentação Swagger gerada sozinha. |
 | **Function Calling + onepieceapi.com** | Em vez de confiar só na memória do modelo, ele consulta dados reais (nomes, imagens, recompensas), o que reduz alucinações e permite os cards visuais. |
@@ -110,7 +110,7 @@ com dados reais da [onepieceapi.com](https://onepieceapi.com) via *Function Call
 
 ### Pela interface web
 
-1. Acesse `http://<IP-PUBLICO-DA-EC2>/`.
+1. Acesse `http://18.221.248.8/`.
 2. Escolha no topo **"Até onde você já assistiu?"** (obrigatório). O botão ☀️/🌙 alterna entre modo dia e noite.
 3. Digite uma pergunta ou clique em uma das sugestões. Cada aba do navegador é um usuário independente.
 
@@ -199,6 +199,10 @@ cd OnePiece
 cp .env.example .env        # edite e coloque sua GEMINI_API_KEY
 docker compose up -d --build
 ```
+
+> **Modelo e cota do Gemini:** o padrão é o `gemini-3.5-flash` (variável `GEMINI_MODEL`). O `gemini-2.5-flash`
+> já não aceita chaves de projetos novos e será desligado em 01/12/2026. A cota gratuita é de 20 requisições por
+> dia por modelo e por projeto (cada pergunta usa cerca de 3); ao esgotar, o chat responde 429 até a cota renovar.
 
 Acesse **http://localhost**. Comandos úteis:
 

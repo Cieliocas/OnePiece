@@ -12,7 +12,7 @@ EC2 `t3.micro` (1 GB RAM) via Docker Compose. Este arquivo é o guia técnico pa
 ```
  Navegador ──HTTP:80──▶ nginx ─┬─ /        → frontend/ (HTML + Tailwind CDN + Vanilla JS)
                                └─ /api/*   → backend:8000 (FastAPI + Uvicorn)
-                                                │  google-genai (gemini-2.5-flash, Function Calling)
+                                                │  google-genai (gemini-3.5-flash, Function Calling)
                                                 ├──▶ Gemini API
                                                 ├──▶ redis:6379 (cache JSON, TTL 1h)
                                                 └──▶ https://www.onepieceapi.com (só em cache miss)
@@ -164,7 +164,7 @@ página, então fora do Docker sirva `frontend/` e a API na mesma origem (é o p
 | Variável | Padrão | Uso |
 |---|---|---|
 | `GEMINI_API_KEY` | — | obrigatória para `/api/chat` (sem ela: 503) |
-| `GEMINI_MODEL` | `gemini-2.5-flash` | modelo |
+| `GEMINI_MODEL` | `gemini-3.5-flash` | modelo |
 | `GEMINI_THINKING_BUDGET` | `1024` | tokens de raciocínio (0 desliga; -1 dinâmico) |
 | `MAX_TOOL_ROUNDS` | `5` | rodadas de function calling por pergunta |
 | `HISTORY_MAX_ITEMS` | `6` | mensagens de histórico enviadas ao modelo |

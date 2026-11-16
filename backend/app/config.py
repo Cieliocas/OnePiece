@@ -14,8 +14,8 @@ def _int(name: str, default: int) -> int:
 @dataclass(frozen=True)
 class Settings:
     gemini_api_key: str = os.getenv("GEMINI_API_KEY", "").strip()
-    gemini_model: str = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
-    # Orçamento de "thinking" do gemini-2.5-flash: 0 desliga, -1 dinâmico.
+    gemini_model: str = os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
+    # Orçamento de "thinking" do Gemini: 0 desliga, -1 dinâmico.
     # 1024 é um bom meio-termo entre custo/latência e qualidade do filtro anti-spoiler.
     gemini_thinking_budget: int = _int("GEMINI_THINKING_BUDGET", 1024)
     max_tool_rounds: int = _int("MAX_TOOL_ROUNDS", 5)

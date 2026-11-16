@@ -13,7 +13,7 @@
                 └───────────┬────────────┘
         rede Docker interna │ logpose-net (bridge)
                 ┌───────────▼────────────┐        HTTPS
-                │ backend (FastAPI)      │ ─────────────▶ Gemini API (gemini-2.5-flash)
+                │ backend (FastAPI)      │ ─────────────▶ Gemini API (gemini-3.5-flash)
                 │ uvicorn · non-root     │ ─────────────▶ www.onepieceapi.com (só em cache miss)
                 └───────────┬────────────┘
                 ┌───────────▼────────────┐

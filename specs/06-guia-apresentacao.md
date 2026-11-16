@@ -27,7 +27,7 @@ Aulas seguintes: basta ligar a instância (SPEC 04) — os containers sobem sozi
 
 ```bash
 curl -s http://<ip>/api/health
-# esperado: {"status":"ok","redis":true,"gemini_configured":true,"model":"gemini-2.5-flash"}
+# esperado: {"status":"ok","redis":true,"gemini_configured":true,"model":"gemini-3.5-flash"}
 
 curl -s http://<ip>/api/chat -H 'Content-Type: application/json' \
   -d '{"message":"Quem é o Luffy?","current_arc":"east-blue","history":[]}' | head -c 300
